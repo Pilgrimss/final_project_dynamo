@@ -4,6 +4,7 @@
 - Locates the objects replicas associated with the key in the storage system 
 - Returns a single list of objects with conflicting versions along with a *context* 
 ### Implementation
+- Any node can act as a coordinator for a read request
 - The coordinator requests all existing versions of data for that key from the $N$ highest-ranked reachable nodes
 - then waits for $R$ responses before returning the result to the client 
 - If multiple versions gathered: (TODO)
@@ -13,6 +14,7 @@
 ### Description
 Determines where the replicas of the object should be placed based on the associated key, and writes the replicas to disk.
 ### Implementation
+- Only nodes in the key's preference list can coordinate 
 - The coordinator generates a vector clock for the new version and writes the new version locally
 - then sends the new version to the $N$ highest-ranked reachable nodes in the preference list of the *key*
 - If at least $W-1$ nodes respond then the write is considered successful
@@ -39,17 +41,13 @@ Dynamo's partitioning scheme relies on a variant of **consistent hashing** to di
 - Each node is responsible for the region between it and its $N^{th}$ *predecessor* node on the ring 
 
 ## Partition Scheme
-### T random tokens per node and equal sized partitions
-- The hash space is divided into $Q$ equally sized ranges
-- Each node is assigned $T$ random tokens 
-- $Q >> N$ and $Q >> S * T$
-- Each node is assigned T tokens
-    - chosen uniformly from the hash space
-- The tokens of all nodes are ordered according to their values in the hash space
-- Each two consecutive tokens define a range
-- The last token and the first token form a range the "wraps" around from the highest value to the lowest value in the hash space
-- The ranges vary in size
- 
+### $Q/S$ random tokens per node and equal sized partitions
+- The hash space is divided into $Q$ equally sized ranges(partitions)
+- Each node is assigned $Q/S$ random tokens, where $S$ is the number of nodes in the system 
+- The tokens are used to map values in the hash space to the ordered list of nodes 
+- A partition is placed on the first N unique nodes that are encountered while walking the consistent hashing ring clockwise from the end of the partition
+- When a node leaves the system, its tokens are randomly distributed to the remaining nodes
+- When a node joins, it steals tokens from nodes in the system 
 # Replication
 >**Preference List**: The List of nodes that is responsible for storing a particular key $k$ 
 >
@@ -64,6 +62,15 @@ Dynamo's partitioning scheme relies on a variant of **consistent hashing** to di
     - A preference list can contain more than $N$ nodes to tolerate node failure
     - The preference list is ensured to contain only distinct physical nodes. 
 # Versioning (TODO)
+# Failure Handling
+## Hinted Handoff (TODO)
+## Replica Synchronization
+### Merkle Tree
+> Merkle tree is a hash tree where leaves are hashes of the values of individual keys.
+> Parent nodes higher in the tree are hashes of their respective 
+
+Dynamo uses merkle tree for anti-entropy:
+- Each node maintains a separate Merkle tree for each key range (the set of keys covered by a virtual node) it hosts. 
 
 # Consistency Protocol
 - $R$: the minimum number of nodes that must participate in a successful read operation
