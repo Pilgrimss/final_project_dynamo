@@ -58,6 +58,14 @@ Dynamo's partitioning scheme relies on a variant of **consistent hashing** to di
     - A preference list can contain more than $N$ nodes to tolerate node failure
     - The preference list is ensured to contain only distinct physical nodes. 
 # Versioning (TODO)
+- Versioning is introduced to solve conflicts. We use vector clock to capture causality between different version of the same object. 
+- **Vector Clock**:
+    - Every Object should has a vector clock for every version. (Note in dynamo each update is an immuatble new version)
+    - Format of vector clock is [(node, counter),(node, counter)...]
+    - comparison: If the counters on the first object’s clock are less-than-or-equal to all of the nodes in the second clock, then the first is an ancestor of the second and can be forgotten. Otherwise conflict.
+    - To avoid oversized pairs list, a timestamp is associated with each pair and the pair will be dumped if len(list) > 10. (Note deleting will not cause inconsisitency but higher chance of reconcile by client)
+    - How do client reconcile? If shopping cart, union all versions.(not deleting any potential items)
+
 # Failure Handling
 ## Hinted Handoff (TODO)
 ## Replica Synchronization
@@ -67,6 +75,13 @@ Dynamo's partitioning scheme relies on a variant of **consistent hashing** to di
 
 Dynamo uses merkle tree for anti-entropy:
 - Each node maintains a separate Merkle tree for each key range (the set of keys covered by a virtual node) it hosts. 
+
+## anti-entropy 
+- **Merkle Trees in Nodes**
+    - For each key range obtained by a node, we need a separate Merkle Tree. That is saying, each node matains a list of Merkle trees. For ex, if Node C has authroity over data range from (A,B] and (B,C], and Node D has (B,C], (C,D] we will only need to compare Merkle Trees of (B,C]. (TODO Maybe there are ways provided by the imported Merkle, need to verify).
+    - Detail implementations are: 
+        - Nodes need to send compare Tree request along with the key range and the Trees. 
+        - When a Node revceived a TreeCompare Request. For each key range to compare, start from the root and go through all the unequal hash till leaf. Then decide which version of the leaf is better and update. Decision made upon the vector clock. 
 
 # Consistency Protocol
 - $R$: the minimum number of nodes that must participate in a successful read operation
