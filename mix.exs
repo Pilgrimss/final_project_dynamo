@@ -1,6 +1,10 @@
 defmodule Project1.MixProject do
   use Mix.Project
 
+  def application do
+    [extra_applications: [:crypto]]
+  end
+
   def project do
     [
       apps_path: "apps",

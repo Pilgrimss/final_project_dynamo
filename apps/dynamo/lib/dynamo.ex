@@ -17,29 +17,30 @@ defmodule Dynamo do
   require Logger
 
   defstruct(
-    merkle_tree: nil,
-    request_timeout: nil,
-    request_timer: nil,
-    min_reads: nil, # minimum number of responses to collect for the
-    min_writes: nil,
+    view: nil, # the membership view mapping: node -> the set of tokens
+    seeds: nil,
+    merkle_trees: nil,
     store: nil
   )
 
   @spec new_configuration(
+    %{},
+    [atom()],
     non_neg_integer(),
     non_neg_integer(),
     non_neg_integer()
     ) :: %Dynamo{}
   def new_configuration(
+    view,
+    seeds,
     request_timeout,
     min_reads,
     min_writes
     ) do
     %Dynamo{
-    merkle_tree: Merkle.new(),
-    request_timeout: request_timeout,
-    min_reads: min_reads,
-    min_writes: min_writes,
+    view: view,
+    seeds: seeds,
+    merkle_trees: nil,
     store: %{}
     }
   end
@@ -51,24 +52,7 @@ defmodule Dynamo do
 
   @spec get(%Dynamo{}, any()) :: {:ok, any()} | :error
   defp get(state, key) do
-    fetch(state.store, key)
+    Map.fetch(state.store, key)
   end
 
-  @spec broadcast(any()) ::[boolean()]
-  defp broadcast() do
-
-  end
-
-  @spec coordinator(%Dynamo{}, any()) :: no_return()
-  defp coordinator(state, extra_state) do
-    receive do
-      {sender, {:get, key}} ->
-        %{extra_state| key: get(state, key)}
-        broadcast({:get, key})
-        coordinator(state, extra_state)
-      {sender, {:put, key, object}} ->
-        %{extra_state| put(state, key)}
-        coordinator(state, extra_state)
-    end
-  end
 end

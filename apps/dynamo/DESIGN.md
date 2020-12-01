@@ -81,7 +81,15 @@ Dynamo uses merkle tree for anti-entropy:
     - For each key range obtained by a node, we need a separate Merkle Tree. That is saying, each node matains a list of Merkle trees. For ex, if Node C has authroity over data range from (A,B] and (B,C], and Node D has (B,C], (C,D] we will only need to compare Merkle Trees of (B,C]. (TODO Maybe there are ways provided by the imported Merkle, need to verify).
     - Detail implementations are: 
         - Nodes need to send compare Tree request along with the key range and the Trees. 
-        - When a Node revceived a TreeCompare Request. For each key range to compare, start from the root and go through all the unequal hash till leaf. Then decide which version of the leaf is better and update. Decision made upon the vector clock. 
+        - When a Node received a TreeCompare Request. For each key range to compare, start from the root and go through all the unequal hash till leaf. Then decide which version of the leaf is better and update. Decision made upon the vector clock. 
+
+# Membership 
+- Each node maintains a view of membership
+- When a node starts, it chooses a set of tokens and maps nodes to their respective token sets.
+- Initially, it only persists the local node and its token set.
+- It communicate with *seeds* to reconcile the membership view. 
+- Seeds broadcast the membership change to other nodes. 
+- Seeds can obtained from static configuration. 
 
 # Consistency Protocol
 - $R$: the minimum number of nodes that must participate in a successful read operation

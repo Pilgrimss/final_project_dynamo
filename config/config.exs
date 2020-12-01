@@ -15,3 +15,13 @@ config :logger,
     [level_lower_than: :info]
   ],
   level: :warn
+
+config :clusters,
+  workers: 3,
+  readers: 2,
+  writers: 2
+
+config :ring,
+  partitions: 8,
+  nodes: 8
+
