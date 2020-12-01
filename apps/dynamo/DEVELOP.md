@@ -11,8 +11,9 @@ put(key, object)
 The requests are routed through a load balancer
 ## Server
 merkle tree 
-### Load Balancer 
-The load balancer 
+### Client Driven Coordination
+- Client picks a random dynamo node and downloads the dynamo membership state  
+- Client determines the set of nodes form the preference list for any given key
 
 ### Partition
 #### Hash Space

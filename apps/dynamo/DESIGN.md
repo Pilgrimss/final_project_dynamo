@@ -23,12 +23,8 @@ Determines where the replicas of the object should be placed based on the associ
 - Context is stored along with the object
 ## Hash
 - Dynamo applies a MD5 hash on the key to generate a 128-bit identifier, which is used to determine the storage nodes to serve the key
-## load Balancer
-- Any storage node in Dynamo is eligible to receive client get and put operations
-- A client route its request through a generic load balancer that will select a node based on load information
-    - If The node receives the request is not in the preference list of the key
-        - the node will forward the request to the first among the top $N$ nodes in the preference list
-    - Optimization: the coordinator for a write is chosen to be the node that relied fastest to the previous read operation which is stored in the context information of the request 
+# Client-Driven Coordination
+
 # Partitioning
 Dynamo's partitioning scheme relies on a variant of **consistent hashing** to distribute the load across multiple storage hosts.
 - The output range of a hash function is treated as a fixed **ring**
