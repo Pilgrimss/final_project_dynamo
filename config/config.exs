@@ -16,12 +16,15 @@ config :logger,
   ],
   level: :warn
 
-config :clusters,
+config :kvs,
+  server: KVS,
+  nodes: 8,
   workers: 3,
   readers: 2,
-  writers: 2
+  writers: 2,
+  timeout: 200
 
-config :ring,
-  partitions: 8,
-  nodes: 8
+#config :ring,
+#  partitions: 8,
+#  nodes: 8
 
