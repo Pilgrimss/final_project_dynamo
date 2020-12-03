@@ -18,7 +18,9 @@ defmodule KVS do
   def store(node) do
     receive do
       {sender, {:get, key}} ->
-        :lists.foreach(fn pid -> send(pid, {self(), {:retrieve, sender, key}}) end,:pg2.get_members(@server))
+        ring = KVS.HashRing.new(:pg2.get_members(@server))
+        preference_list = KVS.HashRing.lookup(ring, key)
+        :lists.foreach(fn pid -> send(pid, {self(), {:retrieve, sender, key}}) end, preference_list)
         store(KVS.Node.add_read(node, {sender, key}))
 
       {sender, {:retrieve, client, key}} ->
@@ -33,7 +35,9 @@ defmodule KVS do
         end
 
       {sender, {:put, key, object}} ->
-        :lists.foreach(fn pid -> send(pid, {self(), {:update, sender, key, object}}) end, :pg2.get_members(@server))
+        ring = KVS.HashRing.new(:pg2.get_members(@server))
+        preference_list = KVS.HashRing.lookup(ring, key)
+        :lists.foreach(fn pid -> send(pid, {self(), {:update, sender, key, object}}) end, preference_list)
         store(KVS.Node.add_write(node, {sender, key}))
 
       {sender, {:update, client, key, object}} ->
@@ -48,6 +52,12 @@ defmodule KVS do
           node ->
             store(node)
         end
+
+      # debug functions
+      {sender, :download} ->
+        send(sender, {self(), node.data})
+        store(node)
+
     end
   end
 end

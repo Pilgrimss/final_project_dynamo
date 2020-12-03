@@ -23,4 +23,16 @@ defmodule KVS.Client do
     end
   end
 
+  # test function
+  def collect() do
+    pros = :pg2.get_members(@server)
+    pros |> Enum.map(fn x -> send(x, {self(), :download}) end)
+    data = pros
+    |> Enum.map(fn x ->
+      receive do
+        {^x, data} -> data
+      end
+    end)
+  end
+
 end

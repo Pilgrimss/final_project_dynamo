@@ -35,25 +35,23 @@ defmodule KVS.HashRing do
     }
   end
 
-  defp lookup(key, ring) do
+  def lookup(ring, key) do
     case :gb_trees.is_empty(ring.ring) do
       true -> {:error, :empty_ring}
       false ->
         hkey = hash(key)
         pos = :gb_trees.iterator_from(hkey, ring.ring)
-        preference_list(pos, @workers, MapSet.new())
+        MapSet.to_list(preference_list(pos, MapSet.new()))
     end
   end
 
-  def preference_list(pos, rem, list) do
-    case rem do
-      0 -> list
+  def preference_list(pos, list) do
+    case MapSet.size(list) do
+      @workers -> list
       _ ->
-        node = :gb_trees.next(pos)
-        if node in list do
-          preference_list(:gb_trees.next(pos), rem, list)
-        else
-          preference_list(:gb_trees.next(pos), rem-1, MapSet.put(list, node))
+        case :gb_trees.next(pos) do
+          {_, node, iter} -> preference_list(iter, MapSet.put(list, node))
+          none -> list
         end
     end
   end

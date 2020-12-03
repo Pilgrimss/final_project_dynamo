@@ -18,6 +18,7 @@ config :logger,
 
 config :kvs,
   server: KVS,
+  partitions: 8,
   nodes: 8,
   workers: 3,
   readers: 2,
