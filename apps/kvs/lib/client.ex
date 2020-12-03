@@ -7,7 +7,7 @@ defmodule KVS.Client do
     send(pid, {self(), {:get, key}})
     receive do
       :error -> {:error, :key_not_exist}
-      value -> value
+      object -> {:ok, object}
     after
         @timeout -> {:error, :timeout}
     end
