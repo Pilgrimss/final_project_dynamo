@@ -6,6 +6,8 @@ defmodule KVS.Node do
 
   defstruct(
     data: nil,
+    tokens: nil,
+    weight: nil,
     pending_r: nil,
     pending_w: nil
   )
@@ -14,6 +16,7 @@ defmodule KVS.Node do
   def new() do
     %KVS.Node{
     data: %{},
+    tokens: [],
     pending_r: %{},
     pending_w: %{}
     }

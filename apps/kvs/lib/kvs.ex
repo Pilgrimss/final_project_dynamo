@@ -18,7 +18,7 @@ defmodule KVS do
   def store(node) do
     receive do
       {sender, {:get, key}} ->
-        :lists.foreach(fn pid -> send(pid, {self(), {:retrieve, sender, key}}) end, :pg2.get_members(@server))
+        :lists.foreach(fn pid -> send(pid, {self(), {:retrieve, sender, key}}) end,:pg2.get_members(@server))
         store(KVS.Node.add_read(node, {sender, key}))
 
       {sender, {:retrieve, client, key}} ->
