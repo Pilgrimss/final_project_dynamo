@@ -35,4 +35,9 @@ defmodule KVS.Client do
     end)
   end
 
+  # test reconcile
+  def get_servers() do
+    :pg2.get_members(@server)
+  end
+
 end

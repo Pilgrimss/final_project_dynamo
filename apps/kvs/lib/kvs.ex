@@ -53,10 +53,35 @@ defmodule KVS do
             store(node)
         end
 
+
+      {sender, {:tree_check_request, tree_range}} ->
+        send(sender, {:tree_check_response, node.merkel_tree_map[tree_range], tree_range})
+        store(node)
+
+      # to do,  we need timer to send , similar to heart beat
+      # to do, we need to calc who shall we send
+      {sender, {:tree_check_response, other_tree, tree_range}} ->
+
+        {_, list} = KVS.Node.compare_merkle_tree(node.merkle_tree_map[tree_range].root, other_tree.root,[])
+        node = KVS.Node.insert_keys(node,list, tree_range)
+        store(node)
+
+
       # debug functions
       {sender, :download} ->
         send(sender, {self(), node.data})
         store(node)
+
+      # debug reconcile
+      {sender, {:insert_keys_intree, list,tree_range}} ->
+        node = KVS.Node.insert_keys(node, list, tree_range)
+        send(sender, {self(), node})
+        store(node)
+
+      {sender, {:download_tree,tree_range}} ->
+        send(sender, {self(), node.merkle_tree_map[tree_range]})
+        store(node)
+
 
     end
   end
