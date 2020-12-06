@@ -17,6 +17,15 @@ defmodule KVSTest do
     Emulation.terminate()
   end
 
+  test "add_node" do
+    Emulation.init()
+    KVS.start()
+    tokens = KVS.HashRing.steal_tokens()
+    IO.inspect([tokens])
+  after
+    Emulation.terminate()
+  end
+
 #  test "hash ring " do
 #    KVS.HashRing.new()
 #    IO.inspect(KVS.HashRing.lookup("test"))

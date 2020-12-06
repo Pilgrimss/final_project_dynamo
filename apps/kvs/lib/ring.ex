@@ -14,19 +14,18 @@ defmodule KVS.HashRing do
 
   """
   alias __MODULE__
-
+  @server Application.fetch_env!(:kvs, :server)
   @hash_space round(:math.pow(2, 32)-1)
   @q Application.get_env(:kvs, :Q)
   @nodes Application.get_env(:kvs, :nodes)
   @n Application.get_env(:kvs, :N)
-
+  @tokens :lists.seq(0, @hash_space, div(@hash_space+1, @q))
   @doc """
   Create a new hash ring with configuration
   """
   def new() do
-    tokens = :lists.seq(0, @hash_space, div(@hash_space+1, @q))
     ring = :ets.new(:ring, [:named_table, :ordered_set, :protected])
-    assign_tokens(tokens, @nodes, Map.new())
+    assign_tokens(@tokens, @nodes, Map.new())
   end
 
   defp assign_tokens(tokens, nodes, map) do
@@ -48,7 +47,6 @@ defmodule KVS.HashRing do
   def lookup(key) do
     hkey = hash(key)
     list = MapSet.to_list(preference_list(hkey, MapSet.new()))
-#    IO.inspect([key, list])
   end
 
   def preference_list(token, set) do
@@ -68,6 +66,14 @@ defmodule KVS.HashRing do
 #    positions = node_to_positions(node)
 #    %{ring|ring: List.foldl(positions, ring.ring, fn {pos, _}, tree -> :gb_trees.delete_any(pos, tree) end)}
 #  end
+
+  def steal_tokens() do
+    # steal tokens
+    num_nodes = length(:pg2.get_members(@server))+1
+    Enum.take_random(@tokens, div(@q, num_nodes))
+    |> Enum.map(fn token -> [:ets.lookup_element(:ring, token, 2),token] end)
+    |> List.foldl(%{}, fn [node,token], acc -> Map.update(acc, node, [token], fn tokens -> [token|tokens] end)  end)
+  end
 
   defp hash(key) do
     <<_::binary-size(12), value::unsigned-little-integer-size(32)>> = :crypto.hash(:md5, :erlang.term_to_binary(key))

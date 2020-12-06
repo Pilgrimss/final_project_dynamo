@@ -10,6 +10,7 @@ defmodule KVS do
   @server Application.fetch_env!(:kvs, :server)
   @nodes Application.fetch_env!(:kvs, :nodes)
 
+
   def start() do
     tokens = KVS.HashRing.new()
     :pg2.create(@server)
@@ -19,6 +20,17 @@ defmodule KVS do
 
   def stop() do
     :lists.foreach(fn pid -> :pg2.leave(@server, pid) end, :pg2.get_members(@server))
+  end
+
+  def add_node(name) do
+    tokens = KVS.HashRing.steal_tokens()
+    tokens |> Enum.map(fn token, node -> send(node, {:steal_token, token})end)
+    tokens |> Enum.map(fn x ->
+      receive do
+        {^x, data} -> data
+      end
+    end)
+    |> IO.inspect()
   end
 
   @spec store(%KVS.Node{}) :: no_return()
@@ -73,6 +85,8 @@ defmodule KVS do
             store(node)
         end
 
+        {sender, {:steal_token, token}} ->
+          store(node)
 
       {sender, {:tree_check_request, tree_range}} ->
         send(sender, {:tree_check_response, node.merkel_tree_map[tree_range], tree_range})
