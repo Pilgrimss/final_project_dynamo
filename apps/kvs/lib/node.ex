@@ -1,23 +1,22 @@
 defmodule KVS.Node do
 
-  @workers Application.fetch_env!(:kvs, :workers)
+  @n Application.fetch_env!(:kvs, :N)
   @writers Application.fetch_env!(:kvs, :writers)
   @readers Application.fetch_env!(:kvs, :readers)
 
   defstruct(
     data: nil,
     tokens: nil,
-    weight: nil,
     pending_r: nil,
     pending_w: nil,
     merkle_tree_map: %{}
   )
 
-  @spec new() :: %KVS.Node{}
-  def new() do
+  @spec new([any()]) :: %KVS.Node{}
+  def new(tokens) do
     %KVS.Node{
     data: %{},
-    tokens: [],
+    tokens: tokens,
     pending_r: %{},
     pending_w: %{},
     merkle_tree_map: %{}

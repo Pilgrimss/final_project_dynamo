@@ -3,22 +3,24 @@ defmodule KVSTest do
   doctest KVS
 
   test "kvs client and pg2" do
+    Emulation.init()
     KVS.start()
-
-    {:ok, [:error, :error]} == KVS.Client.get(:a)
+    {:ok, [:error, :error]} = KVS.Client.get(:a)
     :ok = KVS.Client.put(:a, 10)
-    {:ok, [10, 10]} = KVS.Client.get(:a)
+    IO.inspect(KVS.Client.get(:a))
     :ok = KVS.Client.put(:b, 12)
-    {:ok, [12, 12]} = KVS.Client.get(:b)
+    KVS.Client.get(:b)
+    :ok = KVS.Client.put(:a, 15)
+    KVS.Client.get(:a)
     IO.inspect(KVS.Client.collect())
-
+  after
+    Emulation.terminate()
   end
 
-  test "hash ring " do
-    nodes = [:a, :b, :c, :d]
-    ring = KVS.HashRing.new(nodes)
-    IO.inspect(KVS.HashRing.lookup(ring, "test"))
-    IO.inspect(KVS.HashRing.lookup(ring, "sssssss"))
-  end
+#  test "hash ring " do
+#    KVS.HashRing.new()
+#    IO.inspect(KVS.HashRing.lookup("test"))
+#    IO.inspect(KVS.HashRing.lookup("sssssss"))
+#  end
 
 end

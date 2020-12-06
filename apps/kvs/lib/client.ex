@@ -1,4 +1,12 @@
 defmodule KVS.Client do
+
+  import Emulation, only: [now: 0]
+#
+#  import Kernel,
+#         except: [spawn: 3, spawn: 1, spawn_link: 1, spawn_link: 3, send: 2]
+
+#  import Fuzzers, only: [delay: 1, log_messages: 0]
+
   @timeout Application.fetch_env!(:kvs, :timeout)
   @server Application.fetch_env!(:kvs, :server)
 
@@ -15,6 +23,7 @@ defmodule KVS.Client do
 
   def put(key, object) do
     pid = :pg2.get_closest_pid(@server)
+    IO.puts("pid is #{inspect(self())}")
     send(pid, {self(), {:put, key, object}})
     receive do
       {_, :ok} -> :ok
@@ -27,8 +36,7 @@ defmodule KVS.Client do
   def collect() do
     pros = :pg2.get_members(@server)
     pros |> Enum.map(fn x -> send(x, {self(), :download}) end)
-    data = pros
-    |> Enum.map(fn x ->
+    pros |> Enum.map(fn x ->
       receive do
         {^x, data} -> data
       end

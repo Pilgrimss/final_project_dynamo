@@ -2,12 +2,19 @@ defmodule KVS do
   @moduledoc """
   Documentation for `KVS`.
   """
+  import Emulation, only: [spawn: 2, send: 2, broadcast: 1, timer: 1, now: 0, whoami: 0]
+
+  import Kernel,
+         except: [spawn: 3, spawn: 1, spawn_link: 1, spawn_link: 3, send: 2]
+
   @server Application.fetch_env!(:kvs, :server)
   @nodes Application.fetch_env!(:kvs, :nodes)
 
   def start() do
+    tokens = KVS.HashRing.new()
     :pg2.create(@server)
-    :lists.foreach(fn _ -> :pg2.join(@server, spawn(@server, :store, [KVS.Node.new()])) end, :lists.seq(0, @nodes))
+    :lists.foreach(fn node -> :pg2.join(@server, spawn(node, fn -> KVS.store(KVS.Node.new(tokens[node])) end)) end, @nodes)
+#    :lists.foreach(fn node -> spawn(node, fn -> KVS.store(KVS.Node.new(tokens[node])) end) end, @nodes)
   end
 
   def stop() do
@@ -18,13 +25,12 @@ defmodule KVS do
   def store(node) do
     receive do
       {sender, {:get, key}} ->
-        ring = KVS.HashRing.new(:pg2.get_members(@server))
-        preference_list = KVS.HashRing.lookup(ring, key)
-        :lists.foreach(fn pid -> send(pid, {self(), {:retrieve, sender, key}}) end, preference_list)
+        preference_list = KVS.HashRing.lookup(key)
+        :lists.foreach(fn pid -> send(pid, {:retrieve, sender, key}) end, preference_list)
         store(KVS.Node.add_read(node, {sender, key}))
 
       {sender, {:retrieve, client, key}} ->
-        send(sender, {self(), {:retrieved, client, key, KVS.Node.get(node, key)}})
+        send(sender, {:retrieved, client, key, KVS.Node.get(node, key)})
         store(node)
 
       {sender, {:retrieved, client, key, object}} ->
@@ -35,14 +41,28 @@ defmodule KVS do
         end
 
       {sender, {:put, key, object}} ->
-        ring = KVS.HashRing.new(:pg2.get_members(@server))
-        preference_list = KVS.HashRing.lookup(ring, key)
-        :lists.foreach(fn pid -> send(pid, {self(), {:update, sender, key, object}}) end, preference_list)
-        store(KVS.Node.add_write(node, {sender, key}))
+        timestamp = now()
+        preference_list = KVS.HashRing.lookup(key)
+        me = whoami()
+        if me in preference_list do
+          :lists.foreach(fn pid -> send(pid, {:update, sender, key, {object, {timestamp, me}}}) end, preference_list)
+          store(KVS.Node.add_write(node, {sender, key}))
+        else
+         send(hd(preference_list), {:redirect, preference_list, sender, key, object})
+         store(node)
+        end
+
+      {sender, {:redirect, preference_list, client, key, object}} ->
+        timestamp = now()
+        :lists.foreach(fn pid -> send(pid, {:update, client, key, {object, {timestamp, whoami()}}}) end, preference_list)
+        store(KVS.Node.add_write(node, {client, key}))
+
 
       {sender, {:update, client, key, object}} ->
-        send(sender, {self(), {:updated, client, key}})
-        store(KVS.Node.put(node, key, object))
+        node = KVS.Node.put(node, key, object)
+        send(sender, {:updated, client, key})
+#        IO.inspect(node)
+        store(node)
 
       {sender, {:updated, client, key}} ->
         case KVS.Node.drop_write(node, {client, key}) do
@@ -81,7 +101,6 @@ defmodule KVS do
       {sender, {:download_tree,tree_range}} ->
         send(sender, {self(), node.merkle_tree_map[tree_range]})
         store(node)
-
 
     end
   end

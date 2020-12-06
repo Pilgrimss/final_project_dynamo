@@ -15,66 +15,63 @@ defmodule KVS.HashRing do
   """
   alias __MODULE__
 
-  defstruct(
-    ring: nil,
-  )
-
-  @hash_space :math.pow(2, 32)-1
-  @partitions Application.get_env(:kvs, :partitions)
-  @workers Application.get_env(:kvs, :workers)
+  @hash_space round(:math.pow(2, 32)-1)
+  @q Application.get_env(:kvs, :Q)
+  @nodes Application.get_env(:kvs, :nodes)
+  @n Application.get_env(:kvs, :N)
 
   @doc """
-  Create a new hash ring with no nodes added yet
+  Create a new hash ring with configuration
   """
-  def new(nodes) do
-    %HashRing{ ring:
-    nodes
-    |> Enum.map(fn x -> node_to_positions(x) end)
-    |> :lists.flatten()
-    |> Enum.reduce(:gb_trees.empty(), fn {pos, node}, tree -> :gb_trees.insert(pos, node, tree) end)
-    }
+  def new() do
+    tokens = :lists.seq(0, @hash_space, div(@hash_space+1, @q))
+    ring = :ets.new(:ring, [:named_table, :ordered_set, :protected])
+    assign_tokens(tokens, @nodes, Map.new())
   end
 
-  def lookup(ring, key) do
-    case :gb_trees.is_empty(ring.ring) do
-      true -> {:error, :empty_ring}
-      false ->
-        hkey = hash(key)
-        pos = :gb_trees.iterator_from(hkey, ring.ring)
-        MapSet.to_list(preference_list(pos, MapSet.new()))
-    end
-  end
-
-  def preference_list(pos, list) do
-    case MapSet.size(list) do
-      @workers -> list
-      _ ->
-        case :gb_trees.next(pos) do
-          {_, node, iter} -> preference_list(iter, MapSet.put(list, node))
-          none -> list
+  defp assign_tokens(tokens, nodes, map) do
+    case tokens do
+      [] -> map
+      [token|tokens] ->
+        case nodes do
+          [] ->
+            [node|nodes] = @nodes
+            :ets.insert(:ring, {token, node})
+            assign_tokens(tokens, nodes, Map.update(map, node, [token], fn list -> [token|list] end))
+          [node|nodes] ->
+            :ets.insert(:ring, {token, node})
+            assign_tokens(tokens, nodes, Map.update(map, node, [token], fn list -> [token|list] end))
         end
     end
   end
 
-  def remove(ring, node) do
-    positions = node_to_positions(node)
-    %{ring|ring: List.foldl(positions, ring.ring, fn {pos, _}, tree -> :gb_trees.delete_any(pos, tree) end)}
+  def lookup(key) do
+    hkey = hash(key)
+    list = MapSet.to_list(preference_list(hkey, MapSet.new()))
+#    IO.inspect([key, list])
   end
 
-  def build_ring(nodes, ring) do
-    List.foldl(nodes, ring, fn {pos, node}, tree -> :gb_trees.insert(pos, node, tree) end)
+  def preference_list(token, set) do
+    case MapSet.size(set) do
+      @n -> set
+      _ ->
+        next_token =
+        case :ets.next(:ring, token) do
+          :"$end_of_table" -> :ets.first(:ring)
+          other -> other
+        end
+        preference_list(next_token, MapSet.put(set, :ets.lookup_element(:ring, next_token, 2)))
+    end
   end
 
-  def node_to_positions(node) do
-    :lists.seq(0, @partitions-1)
-    |> Enum.map(fn x -> {hash(node, x), node} end)
-  end
+#  def remove(ring, node) do
+#    positions = node_to_positions(node)
+#    %{ring|ring: List.foldl(positions, ring.ring, fn {pos, _}, tree -> :gb_trees.delete_any(pos, tree) end)}
+#  end
 
   defp hash(key) do
-    Base.encode16(:crypto.hash(:md5, :erlang.term_to_binary(key)))
+    <<_::binary-size(12), value::unsigned-little-integer-size(32)>> = :crypto.hash(:md5, :erlang.term_to_binary(key))
+    value
   end
 
-  defp hash(x, y) do
-     Base.encode16(:crypto.hash(:md5, <<:erlang.term_to_binary(x)::binary, :erlang.term_to_binary(y)::binary>>))
-  end
 end
