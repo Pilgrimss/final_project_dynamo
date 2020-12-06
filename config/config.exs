@@ -18,9 +18,9 @@ config :logger,
 
 config :kvs,
   server: KVS,
-  partitions: 8,
-  nodes: 8,
-  workers: 3,
+  Q: 160,
+  nodes: [:a, :b, :c, :d, :e, :f, :g, :h],
+  N: 3,
   readers: 2,
   writers: 2,
   timeout: 200

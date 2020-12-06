@@ -10,6 +10,7 @@ defmodule EmulationTest do
   def ping do
     receive do
       {sender, :ping} -> send(sender, :pong)
+      IO.inspect(sender)
       m -> assert(false, "Expected message with :ping, got #{m}")
     end
   end
