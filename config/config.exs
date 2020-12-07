@@ -24,7 +24,8 @@ config :kvs,
   N: 3,
   readers: 1,
   writers: 1,
-  timeout: 200
+  timeout: 200,
+  time_after_commit: 10
 
 #config :ring,
 #  partitions: 8,

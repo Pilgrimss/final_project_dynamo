@@ -36,11 +36,12 @@ defmodule KVS.Client do
     end
   end
 
-  def put_and_get(key, context, object) do
+  def put_and_get(key, context, object, time_after_commit) do
     pid = :pg2.get_closest_pid(@server)
     send(pid, {self(), {:put, key, context, object}})
     receive do
-      :ok -> get(key) == object
+      :ok -> :timer.sleep(time_after_commit)
+             get(key) == object
       {:steal, m} -> m
     after
       @timeout -> {:error, :timeout}
