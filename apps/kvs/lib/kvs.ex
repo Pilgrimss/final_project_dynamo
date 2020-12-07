@@ -15,7 +15,6 @@ defmodule KVS do
     tokens = KVS.HashRing.new()
     :pg2.create(@server)
     :lists.foreach(fn node -> :pg2.join(@server, spawn(node, fn -> KVS.store(KVS.Node.new(tokens[node])) end)) end, @nodes)
-#    :lists.foreach(fn node -> spawn(node, fn -> KVS.store(KVS.Node.new(tokens[node])) end) end, @nodes)
   end
 
   def stop() do
@@ -23,14 +22,28 @@ defmodule KVS do
   end
 
   def add_node(name) do
-    tokens = KVS.HashRing.steal_tokens()
-    tokens |> Enum.map(fn token, node -> send(node, {:steal_token, token})end)
-    tokens |> Enum.map(fn x ->
+    :pg2.join(@server, spawn(name, fn -> KVS.new_node() end))
+  end
+
+  def new_node() do
+    {tokens, node_to_tokens} = KVS.HashRing.steal_tokens()
+    node_to_tokens |> Enum.map(fn {x, y} -> send(x, {:steal_tokens, y})end)
+    data = Map.keys(node_to_tokens) |> Enum.map(fn x ->
       receive do
-        {^x, data} -> data
+        {^x, m} -> m
       end
     end)
-    |> IO.inspect()
+    |> List.flatten()
+    |> Map.new()
+
+    # update ring
+
+    tokens
+    |> Enum.map(fn x ->
+      :ets.update_element(:ring, x, {2, whoami()})
+    end)
+
+    store(KVS.Node.new(data, tokens))
   end
 
   @spec store(%KVS.Node{}) :: no_return()
@@ -73,7 +86,6 @@ defmodule KVS do
       {sender, {:update, client, key, object}} ->
         node = KVS.Node.put(node, key, object)
         send(sender, {:updated, client, key})
-#        IO.inspect(node)
         store(node)
 
       {sender, {:updated, client, key}} ->
@@ -85,8 +97,14 @@ defmodule KVS do
             store(node)
         end
 
-        {sender, {:steal_token, token}} ->
-          store(node)
+      {sender, {:steal_tokens, tokens}} ->
+        {node, data} = KVS.Node.drop_tokens(node, tokens)
+        send(sender, data)
+        store(node)
+
+      {sender, {:transfer, data}} ->
+
+        store(node)
 
       {sender, {:tree_check_request, tree_range}} ->
         send(sender, {:tree_check_response, node.merkel_tree_map[tree_range], tree_range})
@@ -103,8 +121,21 @@ defmodule KVS do
 
       # debug functions
       {sender, :download} ->
+        send(sender, {self(), {node.data, node.tokens}})
+        store(node)
+
+      {sender, :download_data} ->
         send(sender, {self(), node.data})
         store(node)
+
+      {sender, :download_token} ->
+        send(sender, {self(), node.tokens})
+        store(node)
+
+      {sender, {:token_to_data, token}} ->
+        send(sender, {self(), KVS.Node.token_to_data(node, token)})
+        store(node)
+
 
       # debug reconcile
       {sender, {:insert_keys_intree, list,tree_range}} ->

@@ -23,7 +23,6 @@ defmodule KVS.Client do
 
   def put(key, object) do
     pid = :pg2.get_closest_pid(@server)
-    IO.puts("pid is #{inspect(self())}")
     send(pid, {self(), {:put, key, object}})
     receive do
       {_, :ok} -> :ok
@@ -39,6 +38,32 @@ defmodule KVS.Client do
     pros |> Enum.map(fn x ->
       receive do
         {^x, data} -> data
+      after
+        @timeout -> {:error, :timeout}
+      end
+    end)
+  end
+
+  def collect_data() do
+    pros = :pg2.get_members(@server)
+    pros |> Enum.map(fn x -> send(x, {self(), :download_data}) end)
+    pros |> Enum.map(fn x ->
+      receive do
+        {^x, data} -> data
+      after
+        @timeout -> {:error, :timeout}
+      end
+    end)
+  end
+
+  def collect_token() do
+    pros = :pg2.get_members(@server)
+    pros |> Enum.map(fn x -> send(x, {self(), :download_token}) end)
+    pros |> Enum.map(fn x ->
+      receive do
+        {^x, data} -> data
+      after
+        @timeout -> {:error, :timeout}
       end
     end)
   end

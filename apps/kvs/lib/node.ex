@@ -23,6 +23,17 @@ defmodule KVS.Node do
     }
   end
 
+  @spec new(%{},[any()]) :: %KVS.Node{}
+  def new(data, tokens) do
+    %KVS.Node{
+      data: data,
+      tokens: tokens,
+      pending_r: %{},
+      pending_w: %{},
+      merkle_tree_map: %{}
+    }
+  end
+
   @spec get(%KVS.Node{}, any()) :: any()
   def get(node, key) do
     Map.get(node.data, key, :error)
@@ -59,6 +70,30 @@ defmodule KVS.Node do
         %{node| pending_r: Map.put(node.pending_r, request, {count-1, [object|objects]})}
     end
   end
+
+  def drop_tokens(node, tokens) do
+    case tokens do
+      nil -> {node, []}
+      _ -> data = tokens
+           |> Enum.map(fn token -> token_to_data(node, token) end)
+           |> List.flatten()
+           node = %{node| tokens: node.tokens--tokens}
+           {node, data}
+    end
+  end
+
+  def token_to_data(node, token) do
+    node.data
+    |> Enum.map(fn {x,y} -> [KVS.HashRing.hash(x), x, y] end)
+    case :ets.prev(:ring, token) do
+      '$end_of_table' -> :ets.last(:ring)
+      other -> node.data
+               |> Enum.filter(fn {key, value} ->
+        hkey = KVS.HashRing.hash(key)
+        hkey >= other and hkey < token end)
+    end
+  end
+
   def compare_node_with_merkle_tree(node, tree, tree_range) do
     #todo
       {_, list} = compare_merkle_tree(node.merkle_tree_map[tree_range].root, tree.root,[])

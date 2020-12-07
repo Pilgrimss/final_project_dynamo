@@ -24,7 +24,7 @@ defmodule KVS.HashRing do
   Create a new hash ring with configuration
   """
   def new() do
-    ring = :ets.new(:ring, [:named_table, :ordered_set, :protected])
+    ring = :ets.new(:ring, [:named_table, :ordered_set, :public])
     assign_tokens(@tokens, @nodes, Map.new())
   end
 
@@ -69,13 +69,16 @@ defmodule KVS.HashRing do
 
   def steal_tokens() do
     # steal tokens
-    num_nodes = length(:pg2.get_members(@server))+1
-    Enum.take_random(@tokens, div(@q, num_nodes))
+    num_nodes = length(:pg2.get_members(@server))
+    tokens = Enum.take_random(@tokens, div(@q, num_nodes))
+    node_to_tokens = tokens
     |> Enum.map(fn token -> [:ets.lookup_element(:ring, token, 2),token] end)
     |> List.foldl(%{}, fn [node,token], acc -> Map.update(acc, node, [token], fn tokens -> [token|tokens] end)  end)
+#    IO.inspect([tokens, node_to_tokens])
+    {tokens, node_to_tokens}
   end
 
-  defp hash(key) do
+  def hash(key) do
     <<_::binary-size(12), value::unsigned-little-integer-size(32)>> = :crypto.hash(:md5, :erlang.term_to_binary(key))
     value
   end

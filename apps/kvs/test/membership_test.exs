@@ -10,11 +10,11 @@ defmodule MembershipTest do
 
 
   test "ets" do
-    :ets.new(:ring, [:named_table, :ordered_set, :protected])
-    :ets.insert(:ring, {0, 1})
-    :ets.insert(:ring, {3, 4})
-    IO.inspect(:ets.lookup_element(:ring, 0, 2))
-    IO.inspect(:ets.update_element(:ring, 0, {2, 3}))
-    IO.inspect(:ets.lookup_element(:ring, 0, 2))
+    :ets.new(:table, [:named_table, :ordered_set, :protected])
+    :ets.insert(:table, {0, 1})
+    :ets.insert(:table, {3, 4})
+    IO.inspect(:ets.lookup_element(:table, 0, 2))
+    IO.inspect(:ets.update_element(:table, 0, {2, 5}))
+    IO.inspect(:ets.lookup_element(:table, 0, 2))
   end
 end
