@@ -69,7 +69,10 @@ defmodule KVS.Node do
     case put(node, key, context, object) do
       {:error, info} -> {:error, info}
       node ->
-        {:ok, %{node|pending_w: Map.put(node.pending_w, {sender, key}, @writers-1)}}
+        case @writers do
+          1 -> {:complete, node}
+          _ -> {:ok, %{node|pending_w: Map.put(node.pending_w, {sender, key}, @writers-1)}}
+        end
     end
   end
 

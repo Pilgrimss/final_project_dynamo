@@ -65,6 +65,9 @@ defmodule KVS do
       {:error, info} ->
         send(sender, {:steal, info})
         store(node)
+      {:complete, node} ->
+        send(sender, :ok)
+        store(node)
       {:ok, node} ->
         :lists.foreach(fn pid -> send(pid, {:update, sender, key, {me, context}, object}) end, List.delete(preference_list, me))
         store(node)
@@ -76,7 +79,7 @@ defmodule KVS do
     receive do
       {sender, {:get, key}} ->
         preference_list = KVS.HashRing.lookup(key)
-        |> IO.inspect()
+#        |> IO.inspect()
         :lists.foreach(fn pid -> send(pid, {:retrieve, sender, key}) end, preference_list)
         store(KVS.Node.add_read(node, {sender, key}))
 
@@ -86,7 +89,7 @@ defmodule KVS do
 
       {sender, {:retrieved, client, key, object}} ->
         case KVS.Node.drop_read(node, {client, key}, object) do
-          {:ok, objects, node} -> send(client, Enum.uniq(objects))
+          {:ok, objects, node} -> send(client, {:ok, Enum.uniq(objects)})
             store(node)
           node -> store(node)
         end
@@ -96,7 +99,7 @@ defmodule KVS do
         if whoami() in preference_list do
           put(node, sender, key, context, object, preference_list)
         else
-         send(Enum.random(preference_list), {:redirect, sender, key, context, object, preference_list})
+         send(hd(preference_list), {:redirect, sender, key, context, object, preference_list})
          store(node)
         end
 
@@ -125,7 +128,7 @@ defmodule KVS do
       {sender, :remove} ->
         others = :pg2.get_members(@server) -- [self()]
         transfer_map = KVS.Node.transfer_data(node, others)
-        IO.inspect(transfer_map)
+#        IO.inspect(transfer_map)
         transfer_map
         |> Enum.map(fn {other, data} ->
           Kernel.send(other, {self(), {:transfer, sender, data}})

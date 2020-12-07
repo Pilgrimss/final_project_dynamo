@@ -15,9 +15,13 @@ defmodule KVS.Client do
     send(pid, {self(), {:get, key}})
     receive do
       :error -> {:error, :key_not_exist}
-      object -> {:ok, object}
+      {:ok, objects} ->
+        case hd(objects) do
+          :error -> :error
+          {value, _} -> value
+        end
     after
-        @timeout -> {:error, :timeout}
+        @timeout -> :timeout
     end
   end
 
@@ -26,6 +30,17 @@ defmodule KVS.Client do
     send(pid, {self(), {:put, key, context, object}})
     receive do
       :ok -> :ok
+      {:steal, m} -> m
+    after
+      @timeout -> {:error, :timeout}
+    end
+  end
+
+  def put_and_get(key, context, object) do
+    pid = :pg2.get_closest_pid(@server)
+    send(pid, {self(), {:put, key, context, object}})
+    receive do
+      :ok -> get(key) == object
       {:steal, m} -> m
     after
       @timeout -> {:error, :timeout}

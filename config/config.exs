@@ -18,15 +18,14 @@ config :logger,
 
 config :kvs,
   server: KVS,
-  Q: 16,
+  Q: 160,
   nodes: [:a, :b, :c, :d, :e, :f, :g, :h],
 #  nodes: [:a, :b, :c, :d],
   N: 3,
-  readers: 2,
-  writers: 2,
+  readers: 1,
+  writers: 1,
   timeout: 200
 
 #config :ring,
 #  partitions: 8,
 #  nodes: 8
-
