@@ -22,7 +22,7 @@ config :kvs,
   nodes: [:a, :b, :c, :d, :e, :f, :g, :h],
 #  nodes: [:a, :b, :c, :d],
   N: 3,
-  readers: 1,
+  readers: 2,
   writers: 1,
   timeout: 200,
   time_after_commit: 10

@@ -16,9 +16,10 @@ defmodule KVS.Client do
     receive do
       :error -> {:error, :key_not_exist}
       {:ok, objects} ->
-        case hd(objects) do
-          :error -> :error
-          {value, _} -> value
+        case objects do
+          [] -> :error
+          _ -> {value, _} = hd(objects)
+          value
         end
     after
         @timeout -> :timeout

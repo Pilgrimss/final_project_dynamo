@@ -14,21 +14,14 @@ defmodule BenchmarkTest do
 
   test 'PBS t-visibility' do
     Emulation.init()
-    Emulation.append_fuzzers([Fuzzers.delay(20)])
+    Emulation.append_fuzzers([Fuzzers.delay(10)])
     KVS.start()
-    3..3
-    |> Enum.map(fn x -> [x, t_test(x)]end)
-    |> IO.inspect()
+    x = 0
+    IO.inspect([x, t_test(x)])
   after
     Emulation.terminate()
   end
 
-  def put_then_get() do
-    1..100
-    |> Enum.map(fn x -> KVS.Client.put(x, 1, x+1) end)
-
-
-  end
 
 
 #  test "one reader" do

@@ -90,7 +90,7 @@ defmodule KVS do
 
       {sender, {:retrieved, client, key, object}} ->
         case KVS.Node.drop_read(node, {client, key}, object) do
-          {:ok, objects, node} -> send(client, {:ok, Enum.uniq(objects)})
+          {:ok, objects, node} -> send(client, {:ok, Enum.uniq(objects)--[:error]})
             store(node)
           node -> store(node)
         end
