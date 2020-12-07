@@ -26,6 +26,7 @@ defmodule KVS.Client do
     send(pid, {self(), {:put, key, context, object}})
     receive do
       {_, :ok} -> :ok
+      m -> m
     after
       @timeout -> {:error, :timeout}
     end

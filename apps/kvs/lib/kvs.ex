@@ -59,6 +59,18 @@ defmodule KVS do
     store(KVS.Node.new(data, tokens))
   end
 
+  def put(node, sender, key, context, object, preference_list) do
+    me = whoami()
+    case KVS.Node.add_write(node, {sender, key}, {me, context}, object) do
+      {:error, info} ->
+        send(sender, {self(),{:steal, info}})
+        store(node)
+      {:ok, node} ->
+        :lists.foreach(fn pid -> send(pid, {:update, sender, key, {me, context}, object}) end, List.delete(preference_list, me))
+        store(node)
+    end
+  end
+
   @spec store(%KVS.Node{}) :: no_return()
   def store(node) do
     receive do
@@ -81,22 +93,18 @@ defmodule KVS do
 
       {sender, {:put, key, context, object}} ->
         preference_list = KVS.HashRing.lookup(key)
-        me = whoami()
-        if me in preference_list do
-          :lists.foreach(fn pid -> send(pid, {:update, sender, key, {object, {context, me}}}) end, preference_list)
-          store(KVS.Node.add_write(node, {sender, key}))
+        if whoami() in preference_list do
+          put(node, sender, key, context, object, preference_list)
         else
-         send(hd(preference_list), {:redirect, preference_list, sender, key, context, object})
+         send(hd(preference_list), {:redirect, sender, key, context, object, preference_list})
          store(node)
         end
 
-      {sender, {:redirect, preference_list, client, key, context, object}} ->
-        :lists.foreach(fn pid -> send(pid, {:update, client, key, {object, {context, whoami()}}}) end, preference_list)
-        store(KVS.Node.add_write(node, {client, key}))
+      {_, {:redirect, client, key, context, object, preference_list}} ->
+        put(node, client, key, context, object, preference_list)
 
-
-      {sender, {:update, client, key, object}} ->
-        node = KVS.Node.put(node, key, object)
+      {sender, {:update, client, key, context, object}} ->
+        node = KVS.Node.put(node, key, context, object)
         send(sender, {:updated, client, key})
         store(node)
 

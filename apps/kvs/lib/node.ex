@@ -42,13 +42,35 @@ defmodule KVS.Node do
     Map.get(node.data, key, :error)
   end
 
-  @spec put(%KVS.Node{}, any(), any()):: %KVS.Node{}
-  def put(node, key, object) do
-    %{node|data: Map.put(node.data, key, object)}
+  @spec put(%KVS.Node{}, any(), any(), any()):: %KVS.Node{}
+  def put(node, key, context, object) do
+    {writer, version} = context
+    case get(node, key) do
+      :error -> %{node|data: Map.put(node.data, key, {object, Map.new([context])})}
+      {cur_object, vector} ->
+      case Map.get(vector, writer, :error) do
+        :error ->
+          new_vector = Map.put(vector, writer, version)
+          %{node|data: Map.put(node.data, key, {object, new_vector})}
+        cur_version ->
+          if cur_version > version do
+            {:error, {cur_version, cur_object}}
+          else
+            new_vector = Map.put(vector, writer, version)
+            %{node|data: Map.put(node.data, key, {object, new_vector})}
+          end
+      end
+    end
+
   end
 
-  def add_write(node, request) do
-    %{node|pending_w: Map.put(node.pending_w,request, @writers)}
+  def add_write(node, request, context, object) do
+    {sender, key} = request
+    case put(node, key, context, object) do
+      {:error, info} -> {:error, info}
+      node ->
+        {:ok, %{node|pending_w: Map.put(node.pending_w, {sender, key}, @writers-1)}}
+    end
   end
 
   def drop_write(node, request) do
