@@ -1,4 +1,5 @@
 defmodule KVS.Node do
+  import Emulation, only: [send: 2, timer: 1, timer: 2, cancel_timer: 1, now: 0, whoami: 0]
 
   @n Application.fetch_env!(:kvs, :N)
   @writers Application.fetch_env!(:kvs, :writers)
@@ -10,7 +11,8 @@ defmodule KVS.Node do
     pending_r: nil,
     pending_w: nil,
     pending_t: nil,
-    merkle_tree_map: %{}
+    merkle_tree_map: %{},
+    partition_set_map: %{}
   )
 
   @spec new([any()]) :: %KVS.Node{}
@@ -21,7 +23,8 @@ defmodule KVS.Node do
     pending_r: %{},
     pending_w: %{},
     pending_t: [],
-    merkle_tree_map: %{}
+    merkle_tree_map: %{},
+    partition_set_map: %{}
     }
   end
 
@@ -45,9 +48,13 @@ defmodule KVS.Node do
   @spec put(%KVS.Node{}, any(), any(), any()):: %KVS.Node{}
   def put(node, key, context, object) do
     {writer, version} = context
+    # adding key to partition_map_set
+    node = KVS.Node.insert_key_to_tree(node, key)
     case get(node, key) do
       :error -> %{node|data: Map.put(node.data, key, {object, Map.new([context])})}
       {cur_object, vector} ->
+        IO.puts("check obj")
+        IO.inspect([cur_object,vector,writer])
       case Map.get(vector, writer, :error) do
         :error ->
           new_vector = Map.put(vector, writer, version)
@@ -69,11 +76,15 @@ defmodule KVS.Node do
     case put(node, key, context, object) do
       {:error, info} -> {:error, info}
       node ->
+        # IO.puts("after write")
+        # IO.puts(whoami())
+        # IO.inspect(Map.get(node.data, key, :error))
         {:ok, %{node|pending_w: Map.put(node.pending_w, {sender, key}, @writers-1)}}
     end
   end
 
   def drop_write(node, request) do
+    IO.inspect(request)
     case Map.get(node.pending_w, request, :error) do
       :error -> node
       1 -> {:ok, %{node| pending_w: Map.delete(node.pending_w, request)}}
@@ -86,6 +97,8 @@ defmodule KVS.Node do
   end
 
   def drop_read(node, request, object) do
+    IO.puts("pending_R")
+    IO.inspect(node.pending_r)
     case Map.get(node.pending_r, request, :error) do
       :error -> node
       {1, objects} ->
@@ -140,6 +153,37 @@ defmodule KVS.Node do
     end
   end
 
+  #get one partiton end with token, return the a list of (key, obj)
+
+  def get_single_partition_data_by_token(node, token) do
+    case Map.get(node.partition_set_map, token, :error) do
+      :error -> []
+      partition_set ->
+        Enum.reduce(partition_set, %{} ,fn x, acc -> Map.put(acc, x, Map.get(node.data, x, :error)) end)
+    end
+  end
+
+  # def get_all_partition_data_before_token(node, token) do
+
+  # end
+
+  def insert_key_to_tree(node, key) do
+    token = KVS.HashRing.key_end_hash(key)
+    case Map.get(node.partition_set_map, token, :error) do
+      # is it possible to get out of range token?
+      :error ->
+        %{node| partition_set_map: Map.put(node.partition_set_map, token, MapSet.new([key]))}
+      partition_set ->
+        %{node| partition_set_map: Map.put(node.partition_set_map, token, MapSet.put(partition_set, key))}
+    end
+  end
+
+
+  @spec compare_node_with_merkle_tree(
+          %{merkle_tree_map: map},
+          atom | %{root: atom | %{key_hash: any}},
+          any
+        ) :: %{merkle_tree_map: map}
   def compare_node_with_merkle_tree(node, tree, tree_range) do
     #todo
       {_, list} = compare_merkle_tree(node.merkle_tree_map[tree_range].root, tree.root,[])
