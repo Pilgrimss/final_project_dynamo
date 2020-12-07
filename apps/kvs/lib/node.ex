@@ -9,6 +9,7 @@ defmodule KVS.Node do
     tokens: nil,
     pending_r: nil,
     pending_w: nil,
+    pending_t: nil,
     merkle_tree_map: %{}
   )
 
@@ -19,6 +20,7 @@ defmodule KVS.Node do
     tokens: tokens,
     pending_r: %{},
     pending_w: %{},
+    pending_t: [],
     merkle_tree_map: %{}
     }
   end
@@ -30,6 +32,7 @@ defmodule KVS.Node do
       tokens: tokens,
       pending_r: %{},
       pending_w: %{},
+      pending_t: [],
       merkle_tree_map: %{}
     }
   end
@@ -69,6 +72,27 @@ defmodule KVS.Node do
       {count, objects} ->
         %{node| pending_r: Map.put(node.pending_r, request, {count-1, [object|objects]})}
     end
+  end
+
+  def transfer_data(node, others) do
+    get_data(node)
+    |> Enum.map(fn {token, data} ->
+      [Enum.random(others), {token, Map.new(data)}]
+    end)
+    |> List.foldl(%{}, fn [node, data], acc -> Map.update(acc, node, [data], fn acc_data -> [data|acc_data] end)  end)
+  end
+
+  def add_data(node, data) do
+    node = data
+    |> List.foldr(node, fn {token, data}, acc ->
+    %{acc|tokens: [token|acc.tokens], data: Map.merge(data, acc.data)
+    }
+    end)
+  end
+
+  def get_data(node) do
+    data = node.tokens
+    |> Enum.map(fn token -> {token, token_to_data(node, token)}  end)
   end
 
   def drop_tokens(node, tokens) do

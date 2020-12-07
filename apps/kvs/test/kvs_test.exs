@@ -17,20 +17,37 @@ defmodule KVSTest do
 #    Emulation.terminate()
 #  end
 
-  test "add_node" do
+#  test "add_node" do
+#    Emulation.init()
+#    KVS.start()
+#    1..10
+#    |> Enum.map(fn x -> KVS.Client.put(x, x+1) end)
+##    KVS.Client.put(:a, 1)
+##    KVS.Client.put(:b, 2)
+##    KVS.Client.put(:c, 3)
+##    KVS.Client.put(:d, 4)
+#    IO.inspect(KVS.Client.collect_token())
+#    KVS.add_node(:test)
+#    :timer.sleep(2000)
+#    IO.inspect(KVS.Client.collect_token())
+#    IO.inspect(KVS.Client.get(1))
+#  after
+#    Emulation.terminate()
+#  end
+
+  test "remove_node" do
     Emulation.init()
     KVS.start()
     1..10
     |> Enum.map(fn x -> KVS.Client.put(x, x+1) end)
-#    KVS.Client.put(:a, 1)
-#    KVS.Client.put(:b, 2)
-#    KVS.Client.put(:c, 3)
-#    KVS.Client.put(:d, 4)
+    #    KVS.Client.put(:a, 1)
+    #    KVS.Client.put(:b, 2)
+    #    KVS.Client.put(:c, 3)
+    #    KVS.Client.put(:d, 4)
     IO.inspect(KVS.Client.collect_token())
-    KVS.add_node(:test)
+    KVS.remove_node(:a)
     :timer.sleep(2000)
     IO.inspect(KVS.Client.collect_token())
-#
     IO.inspect(KVS.Client.get(1))
   after
     Emulation.terminate()

@@ -12,9 +12,12 @@ defmodule KVS do
 
 
   def start() do
+    :ets.new(:nodes, [:named_table, :set, :protected])
     tokens = KVS.HashRing.new()
     :pg2.create(@server)
     :lists.foreach(fn node -> :pg2.join(@server, spawn(node, fn -> KVS.store(KVS.Node.new(tokens[node])) end)) end, @nodes)
+    Enum.zip(@nodes, :pg2.get_members(@server))
+    |> Enum.map(fn {x,y} -> :ets.insert(:nodes, {x, y}) end)
   end
 
   def stop() do
@@ -25,9 +28,20 @@ defmodule KVS do
     :pg2.join(@server, spawn(name, fn -> KVS.new_node() end))
   end
 
+  def remove_node(name) do
+    pid = :ets.lookup_element(:nodes, name, 2)
+    :ets.delete(:ring, name)
+    Kernel.send(pid, {self(), :remove})
+    receive do
+      {^pid, :transferred} -> :pg2.leave(@server, pid)
+    end
+  end
+
   def new_node() do
+    :ets.insert(:nodes, {whoami(), self()})
     {tokens, node_to_tokens} = KVS.HashRing.steal_tokens()
     node_to_tokens |> Enum.map(fn {x, y} -> send(x, {:steal_tokens, y})end)
+    # collect data
     data = Map.keys(node_to_tokens) |> Enum.map(fn x ->
       receive do
         {^x, m} -> m
@@ -37,7 +51,6 @@ defmodule KVS do
     |> Map.new()
 
     # update ring
-
     tokens
     |> Enum.map(fn x ->
       :ets.update_element(:ring, x, {2, whoami()})
@@ -102,9 +115,27 @@ defmodule KVS do
         send(sender, data)
         store(node)
 
-      {sender, {:transfer, data}} ->
+      {sender, :remove} ->
+        others = :pg2.get_members(@server) -- [self()]
+        transfer_map = KVS.Node.transfer_data(node, others)
+        IO.inspect(transfer_map)
+        transfer_map
+        |> Enum.map(fn {other, data} ->
+          Kernel.send(other, {self(), {:transfer, sender, data}})
+        end)
+        store(%{node| pending_t: Map.keys(transfer_map)})
 
+      {sender, {:transfer, server, data}} ->
+        node = KVS.Node.add_data(node, data)
+        Kernel.send(sender, {self(), {:transferred, server}})
         store(node)
+
+      {sender, {:transferred, server}} ->
+        case node.pending_t do
+          [sender] -> Kernel.send(server, {self(), :transferred})
+          _ ->
+            store(%{node|pending_t: List.delete(node.pending_t, sender)})
+        end
 
       {sender, {:tree_check_request, tree_range}} ->
         send(sender, {:tree_check_response, node.merkel_tree_map[tree_range], tree_range})
