@@ -2,7 +2,7 @@ defmodule KVS do
   @moduledoc """
   Documentation for `KVS`.
   """
-  import Emulation, only: [spawn: 2, send: 2, broadcast: 1, timer: 1, now: 0, whoami: 0]
+  import Emulation, only: [spawn: 2, send: 2, whoami: 0]
 
   import Kernel,
          except: [spawn: 3, spawn: 1, spawn_link: 1, spawn_link: 3, send: 2]
@@ -67,6 +67,7 @@ defmodule KVS do
         store(node)
       {:complete, node} ->
         send(sender, :ok)
+        :lists.foreach(fn pid -> send(pid, {:update, sender, key, {me, context}, object}) end, List.delete(preference_list, me))
         store(node)
       {:ok, node} ->
         :lists.foreach(fn pid -> send(pid, {:update, sender, key, {me, context}, object}) end, List.delete(preference_list, me))
