@@ -64,6 +64,7 @@ defmodule KVS do
     receive do
       {sender, {:get, key}} ->
         preference_list = KVS.HashRing.lookup(key)
+        |> IO.inspect()
         :lists.foreach(fn pid -> send(pid, {:retrieve, sender, key}) end, preference_list)
         store(KVS.Node.add_read(node, {sender, key}))
 
@@ -127,6 +128,9 @@ defmodule KVS do
 
       {sender, {:transfer, server, data}} ->
         node = KVS.Node.add_data(node, data)
+        data
+        |> Enum.map(fn {token, _} -> token end)
+        |> Enum.map(fn token -> :ets.update_element(:ring, token, {2, whoami()}) end)
         Kernel.send(sender, {self(), {:transferred, server}})
         store(node)
 
@@ -149,7 +153,6 @@ defmodule KVS do
         node = KVS.Node.insert_keys(node,list, tree_range)
         store(node)
 
-
       # debug functions
       {sender, :download} ->
         send(sender, {self(), {node.data, node.tokens}})
@@ -166,7 +169,6 @@ defmodule KVS do
       {sender, {:token_to_data, token}} ->
         send(sender, {self(), KVS.Node.token_to_data(node, token)})
         store(node)
-
 
       # debug reconcile
       {sender, {:insert_keys_intree, list,tree_range}} ->

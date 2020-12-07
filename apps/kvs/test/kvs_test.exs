@@ -44,11 +44,13 @@ defmodule KVSTest do
     #    KVS.Client.put(:b, 2)
     #    KVS.Client.put(:c, 3)
     #    KVS.Client.put(:d, 4)
-    IO.inspect(KVS.Client.collect_token())
+#    IO.inspect(KVS.Client.collect_token())
+    IO.inspect(KVS.Client.get(5))
     KVS.remove_node(:a)
     :timer.sleep(2000)
-    IO.inspect(KVS.Client.collect_token())
-    IO.inspect(KVS.Client.get(1))
+    IO.inspect(KVS.Client.get(5))
+#    IO.inspect(KVS.Client.collect_token())
+
   after
     Emulation.terminate()
   end

@@ -107,7 +107,7 @@ defmodule KVS.Node do
   end
 
   def token_to_data(node, token) do
-    node.data
+    node.data #{key, value}
     |> Enum.map(fn {x,y} -> [KVS.HashRing.hash(x), x, y] end)
     case :ets.prev(:ring, token) do
       '$end_of_table' -> :ets.last(:ring)

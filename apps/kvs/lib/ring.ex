@@ -83,4 +83,8 @@ defmodule KVS.HashRing do
     value
   end
 
+#  def full_hash(key) do
+#    Base.encode16(:crypto.hash(:md5, :erlang.term_to_binary(key)))
+#  end
+
 end
