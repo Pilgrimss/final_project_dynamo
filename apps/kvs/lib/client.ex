@@ -25,8 +25,8 @@ defmodule KVS.Client do
     pid = :pg2.get_closest_pid(@server)
     send(pid, {self(), {:put, key, context, object}})
     receive do
-      {_, :ok} -> :ok
-      m -> m
+      :ok -> :ok
+      {:steal, m} -> m
     after
       @timeout -> {:error, :timeout}
     end

@@ -63,7 +63,7 @@ defmodule KVS do
     me = whoami()
     case KVS.Node.add_write(node, {sender, key}, {me, context}, object) do
       {:error, info} ->
-        send(sender, {self(),{:steal, info}})
+        send(sender, {:steal, info})
         store(node)
       {:ok, node} ->
         :lists.foreach(fn pid -> send(pid, {:update, sender, key, {me, context}, object}) end, List.delete(preference_list, me))
@@ -96,7 +96,7 @@ defmodule KVS do
         if whoami() in preference_list do
           put(node, sender, key, context, object, preference_list)
         else
-         send(hd(preference_list), {:redirect, sender, key, context, object, preference_list})
+         send(Enum.random(preference_list), {:redirect, sender, key, context, object, preference_list})
          store(node)
         end
 
@@ -111,7 +111,7 @@ defmodule KVS do
       {sender, {:updated, client, key}} ->
         case KVS.Node.drop_write(node, {client, key}) do
           {:ok, node} ->
-            send(client, {self(), :ok})
+            send(client, :ok)
             store(node)
           node ->
             store(node)
