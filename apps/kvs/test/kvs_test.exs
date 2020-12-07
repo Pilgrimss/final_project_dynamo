@@ -2,20 +2,20 @@ defmodule KVSTest do
   use ExUnit.Case
   doctest KVS
 
-#  test "kvs client and pg2" do
-#    Emulation.init()
-#    KVS.start()
-#    {:ok, [:error, :error]} = KVS.Client.get(:a)
-#    :ok = KVS.Client.put(:a, 10)
-##    IO.inspect(KVS.Client.get(:a))
-#    :ok = KVS.Client.put(:b, 12)
-#    KVS.Client.get(:b)
-#    :ok = KVS.Client.put(:a, 15)
-#    KVS.Client.get(:a)
-##    IO.inspect(KVS.Client.collect())
-#  after
-#    Emulation.terminate()
-#  end
+  test "kvs client and pg2" do
+    Emulation.init()
+    KVS.start()
+    {:ok, [:error, :error]} = KVS.Client.get(:a)
+    :ok = KVS.Client.put(:a, 10)
+#    IO.inspect(KVS.Client.get(:a))
+    :ok = KVS.Client.put(:b, 12)
+    KVS.Client.get(:b)
+    :ok = KVS.Client.put(:a, 15)
+    KVS.Client.get(:a)
+#    IO.inspect(KVS.Client.collect())
+  after
+    Emulation.terminate()
+  end
 
 #  test "add_node" do
 #    Emulation.init()
@@ -47,7 +47,7 @@ defmodule KVSTest do
 #    IO.inspect(KVS.Client.collect_token())
     IO.inspect(KVS.Client.get(5))
     KVS.remove_node(:a)
-    :timer.sleep(2000)
+    :timer.sleep(200)
     IO.inspect(KVS.Client.get(5))
 #    IO.inspect(KVS.Client.collect_token())
 

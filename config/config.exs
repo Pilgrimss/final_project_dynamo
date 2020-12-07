@@ -22,8 +22,8 @@ config :kvs,
 #  nodes: [:a, :b, :c, :d, :e, :f, :g, :h],
   nodes: [:a, :b, :c, :d],
   N: 3,
-  readers: 1,
-  writers: 1,
+  readers: 2,
+  writers: 2,
   timeout: 200
 
 #config :ring,

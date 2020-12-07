@@ -74,26 +74,24 @@ defmodule KVS do
 
       {sender, {:retrieved, client, key, object}} ->
         case KVS.Node.drop_read(node, {client, key}, object) do
-          {:ok, objects, node} -> send(client, objects)
+          {:ok, objects, node} -> send(client, Enum.uniq(objects))
             store(node)
           node -> store(node)
         end
 
-      {sender, {:put, key, object}} ->
-        timestamp = now()
+      {sender, {:put, key, context, object}} ->
         preference_list = KVS.HashRing.lookup(key)
         me = whoami()
         if me in preference_list do
-          :lists.foreach(fn pid -> send(pid, {:update, sender, key, {object, {timestamp, me}}}) end, preference_list)
+          :lists.foreach(fn pid -> send(pid, {:update, sender, key, {object, {context, me}}}) end, preference_list)
           store(KVS.Node.add_write(node, {sender, key}))
         else
-         send(hd(preference_list), {:redirect, preference_list, sender, key, object})
+         send(hd(preference_list), {:redirect, preference_list, sender, key, context, object})
          store(node)
         end
 
-      {sender, {:redirect, preference_list, client, key, object}} ->
-        timestamp = now()
-        :lists.foreach(fn pid -> send(pid, {:update, client, key, {object, {timestamp, whoami()}}}) end, preference_list)
+      {sender, {:redirect, preference_list, client, key, context, object}} ->
+        :lists.foreach(fn pid -> send(pid, {:update, client, key, {object, {context, whoami()}}}) end, preference_list)
         store(KVS.Node.add_write(node, {client, key}))
 
 

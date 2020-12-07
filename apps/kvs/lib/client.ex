@@ -21,9 +21,9 @@ defmodule KVS.Client do
     end
   end
 
-  def put(key, object) do
+  def put(key, context, object) do
     pid = :pg2.get_closest_pid(@server)
-    send(pid, {self(), {:put, key, object}})
+    send(pid, {self(), {:put, key, context, object}})
     receive do
       {_, :ok} -> :ok
     after
